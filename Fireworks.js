@@ -343,7 +343,7 @@ window.fireworks = (new function() { // jshint ignore:line
 		this.active = 1;
 		this.fontSize = (10 + (this.type / 5) * 10);
 		this.o = document.createElement('div');
-		this.o.innerHTML = storm.firework;
+		this.o.innerHTML = storm.starCharacter;
 		if (storm.className) {
 			this.o.setAttribute('class', storm.className);
 		}
