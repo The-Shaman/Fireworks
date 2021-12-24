@@ -10,10 +10,11 @@
 
 /*jslint nomen: true, plusplus: true, sloppy: true, vars: true, white: true */
 /*global window, document, navigator, clearInterval, setInterval */
-window.fireworks = (new function() { // jshint ignore:line
+window.fireworkShow = (new function() { // jshint ignore:line
 	var defaults = {
 		autoStart: true, // Whether the snow should start automatically or not.
 		excludeMobile: true, // Snow is likely to be bad news for mobile phones' CPUs (and batteries.) Enable at your own risk.
+		rocketsMax: 4, // Make this flakesMaxActive/16 (warning: this ratio hasn't been tested so don't trust it)
 		flakesMax: 128, // Limit total amount of snow made (falling + sticking)
 		flakesMaxActive: 64,  // Limit amount of snow falling at once (less = lower CPU use)
 		animationInterval: 35, // Theoretical "milliseconds per frame" measurement. 20 = fast + smooth, but high 
@@ -47,7 +48,7 @@ window.fireworks = (new function() { // jshint ignore:line
 		flakeTypes: 6,
 	};
 	
-	var config = Object.assign(defaults, window.fireworks || {});
+	var config = Object.assign(defaults, window.fireworkShow || {});
 	
 	// Support deprecated configuration parameters - support will be removed at any time without warning
 	Object.keys(defaults).forEach(function(key) {
@@ -60,7 +61,7 @@ window.fireworks = (new function() { // jshint ignore:line
 	Object.assign(this, config);
 
 	// --- "No user-serviceable parts inside" past this point, yadda yadda ---
-	var storm = this,
+	var show = this,
 		features,
 		// UA sniffing and backCompat rendering mode checks for fixed position, etc.
 		isIE = navigator.userAgent.match(/msie/i),
@@ -97,7 +98,7 @@ window.fireworks = (new function() { // jshint ignore:line
 		 * https://gist.github.com/838785
 		 */
 		function timeoutShim(callback) {
-			window.setTimeout(callback, 1000 / (storm.animationInterval || 20));
+			window.setTimeout(callback, 1000 / (show.animationInterval || 20));
 		}
 
 		var _animationFrame = (window.requestAnimationFrame ||
@@ -156,22 +157,22 @@ window.fireworks = (new function() { // jshint ignore:line
 	this.setXY = function(o, x, y) {
 		if (!o) return false;
 
-		if (storm.usePixelPosition || targetElementIsRelative) {
-			o.style.left = (x - storm.flakeWidth) + 'px';
-			o.style.top = (y - storm.flakeHeight) + 'px';
+		if (show.usePixelPosition || targetElementIsRelative) {
+			o.style.left = (x - show.flakeWidth) + 'px';
+			o.style.top = (y - show.flakeHeight) + 'px';
 		} else if (noFixed) {
 			o.style.right = (100 - (x / screenX * 100)) + '%';
 			// avoid creating vertical scrollbars
-			o.style.top = (Math.min(y, docHeight - storm.flakeHeight)) + 'px';
+			o.style.top = (Math.min(y, docHeight - show.flakeHeight)) + 'px';
 		} else {
-			if (!storm.flakeBottom) {
+			if (!show.flakeBottom) {
 				// if not using a fixed bottom coordinate...
 				o.style.right = (100 - (x / screenX * 100)) + '%';
 				o.style.bottom = (100 - (y / screenY * 100)) + '%';
 			} else {
 				// absolute top.
 				o.style.right = (100 - (x / screenX * 100)) + '%';
-				o.style.top = (Math.min(y, docHeight - storm.flakeHeight)) + 'px';
+				o.style.top = (Math.min(y, docHeight - show.flakeHeight)) + 'px';
 			}
 		}
 	};
@@ -235,12 +236,12 @@ window.fireworks = (new function() { // jshint ignore:line
 	this.scrollHandler = function() {
 		var i;
 		// "attach" snowflakes to bottom of window if no absolute bottom value was given
-		scrollY = (storm.flakeBottom ? 0 : parseInt(window.scrollY || document.documentElement.scrollTop || (noFixed ? document.body.scrollTop : 0), 10));
+		scrollY = (show.flakeBottom ? 0 : parseInt(window.scrollY || document.documentElement.scrollTop || (noFixed ? document.body.scrollTop : 0), 10));
 		if (isNaN(scrollY)) scrollY = 0; // Netscape 6 scroll fix
-		if (!fixedForEverything && !storm.flakeBottom && storm.flakes) {
-			for(i = 0; i < storm.flakes.length; i++) {
-				if (storm.flakes[i].active === 0) {
-					storm.flakes[i].stick();
+		if (!fixedForEverything && !show.flakeBottom && show.flakes) {
+			for(i = 0; i < show.flakes.length; i++) {
+				if (show.flakes[i].active === 0) {
+					show.flakes[i].stick();
 				}
 			}
 		}
@@ -248,54 +249,54 @@ window.fireworks = (new function() { // jshint ignore:line
 
 	this.resizeHandler = function() {
 		if (window.innerWidth || window.innerHeight) {
-			screenX = window.innerWidth - 16 - storm.flakeRightOffset;
-			screenY = (storm.flakeBottom || window.innerHeight);
+			screenX = window.innerWidth - 16 - show.flakeRightOffset;
+			screenY = (show.flakeBottom || window.innerHeight);
 		} else {
-			screenX = (document.documentElement.clientWidth || document.body.clientWidth || document.body.scrollWidth) - (!isIE ? 8 : 0) - storm.flakeRightOffset;
-			screenY = storm.flakeBottom || document.documentElement.clientHeight || document.body.clientHeight || document.body.scrollHeight;
+			screenX = (document.documentElement.clientWidth || document.body.clientWidth || document.body.scrollWidth) - (!isIE ? 8 : 0) - show.flakeRightOffset;
+			screenY = show.flakeBottom || document.documentElement.clientHeight || document.body.clientHeight || document.body.scrollHeight;
 		}
 		docHeight = document.body.offsetHeight;
 		screenX2 = parseInt(screenX / 2, 10);
 	};
 
 	this.resizeHandlerAlt = function() {
-		screenX = storm.targetElement.offsetWidth - storm.flakeRightOffset;
-		screenY = storm.flakeBottom || storm.targetElement.offsetHeight;
+		screenX = show.targetElement.offsetWidth - show.flakeRightOffset;
+		screenY = show.flakeBottom || show.targetElement.offsetHeight;
 		screenX2 = parseInt(screenX / 2, 10);
 		docHeight = document.body.offsetHeight;
 	};
 
 	this.freeze = function() {
 		// pause animation
-		if (!storm.disabled) {
-			storm.disabled = 1;
+		if (!show.disabled) {
+			show.disabled = 1;
 		} else {
 			return false;
 		}
-		storm.timer = null;
+		show.timer = null;
 	};
 
 	this.resume = function() {
-		if (storm.disabled) {
-			storm.disabled = 0;
+		if (show.disabled) {
+			show.disabled = 0;
 		} else {
 			return false;
 		}
-		storm.timerInit();
+		show.timerInit();
 	};
 
 	this.toggleSnow = function() {
-		if (!storm.flakes.length) {
+		if (!show.flakes.length) {
 			// first run
-			storm.start();
+			show.start();
 		} else {
-			storm.active = !storm.active;
-			if (storm.active) {
-				storm.show();
-				storm.resume();
+			show.active = !show.active;
+			if (show.active) {
+				show.show();
+				show.resume();
 			} else {
-				storm.stop();
-				storm.freeze();
+				show.stop();
+				show.freeze();
 			}
 		}
 	};
@@ -306,15 +307,15 @@ window.fireworks = (new function() { // jshint ignore:line
 		for(i = 0; i < this.flakes.length; i++) {
 			this.flakes[i].o.style.display = 'none';
 		}
-		storm.events.remove(window, 'scroll', storm.scrollHandler);
-		storm.events.remove(window, 'resize', storm.resizeHandler);
-		if (storm.freezeOnBlur) {
+		show.events.remove(window, 'scroll', show.scrollHandler);
+		show.events.remove(window, 'resize', show.resizeHandler);
+		if (show.freezeOnBlur) {
 			if (isIE) {
-				storm.events.remove(document, 'focusout', storm.freeze);
-				storm.events.remove(document, 'focusin', storm.resume);
+				show.events.remove(document, 'focusout', show.freeze);
+				show.events.remove(document, 'focusin', show.resume);
 			} else {
-				storm.events.remove(window, 'blur', storm.freeze);
-				storm.events.remove(window, 'focus', storm.resume);
+				show.events.remove(window, 'blur', show.freeze);
+				show.events.remove(window, 'focus', show.resume);
 			}
 		}
 	};
@@ -336,30 +337,30 @@ window.fireworks = (new function() { // jshint ignore:line
 		this.vAmpTypes = [1, 1.2, 1.4, 1.6, 1.8]; // "amplification" for vX/vY (based on flake size/type)
 		this.vAmp = this.vAmpTypes[this.type] || 1;
 		this.melting = false;
-		this.meltFrameCount = storm.meltFrameCount;
-		this.meltFrames = storm.meltFrames;
+		this.meltFrameCount = show.meltFrameCount;
+		this.meltFrames = show.meltFrames;
 		this.meltFrame = 0;
 		this.twinkleFrame = 0;
 		this.active = 1;
 		this.fontSize = (10 + (this.type / 5) * 10);
 		this.o = document.createElement('div');
-		this.o.innerHTML = storm.starCharacter;
-		if (storm.className) {
-			this.o.setAttribute('class', storm.className);
+		this.o.innerHTML = show.starCharacter;
+		if (show.className) {
+			this.o.setAttribute('class', show.className);
 		}
-		//this.o.style.color = storm.snowColor;
+		//this.o.style.color = show.snowColor;
 		this.o.style.position = (fixedForEverything ? 'fixed' : 'absolute');
-		if (storm.useGPU && features.transform.prop) {
+		if (show.useGPU && features.transform.prop) {
 			// GPU-accelerated snow.
 			this.o.style[features.transform.prop] = 'translate3d(0px, 0px, 0px)';
 		}
-		this.o.style.width = storm.flakeWidth + 'px';
-		this.o.style.height = storm.flakeHeight + 'px';
+		this.o.style.width = show.flakeWidth + 'px';
+		this.o.style.height = show.flakeHeight + 'px';
 		this.o.style.fontFamily = 'arial,verdana';
 		this.o.style.cursor = 'default';
 		this.o.style.overflow = 'hidden';
 		this.o.style.fontWeight = 'normal';
-		this.o.style.zIndex = storm.zIndex;
+		this.o.style.zIndex = show.zIndex;
 		docFrag.appendChild(this.o);
 
 		this.refresh = function() {
@@ -367,14 +368,14 @@ window.fireworks = (new function() { // jshint ignore:line
 				// safety check
 				return false;
 			}
-			storm.setXY(s.o, s.x, s.y);
+			show.setXY(s.o, s.x, s.y);
 		};
 
 		this.stick = function() {
-			if (noFixed || (storm.targetElement !== document.documentElement && storm.targetElement !== document.body)) {
-				s.o.style.top = (screenY + scrollY - storm.flakeHeight) + 'px';
-			} else if (storm.flakeBottom) {
-				s.o.style.top = storm.flakeBottom + 'px';
+			if (noFixed || (show.targetElement !== document.documentElement && show.targetElement !== document.body)) {
+				s.o.style.top = (screenY + scrollY - show.flakeHeight) + 'px';
+			} else if (show.flakeBottom) {
+				s.o.style.top = show.flakeBottom + 'px';
 			} else {
 				s.o.style.display = 'none';
 				s.o.style.top = 'auto';
@@ -396,33 +397,33 @@ window.fireworks = (new function() { // jshint ignore:line
 		};
 
 		this.move = function() {
-			var vX = s.vX * storm.windOffset,
+			var vX = s.vX * show.windOffset,
 				yDiff;
 			s.x += vX;
 			s.y += (s.vY * s.vAmp);
-			if (s.x >= screenX || screenX - s.x < storm.flakeWidth) { // X-axis scroll check
+			if (s.x >= screenX || screenX - s.x < show.flakeWidth) { // X-axis scroll check
 				s.x = 0;
-			} else if (vX < 0 && s.x - storm.flakeLeftOffset < -storm.flakeWidth) {
-				s.x = screenX - storm.flakeWidth - 1; // flakeWidth;
+			} else if (vX < 0 && s.x - show.flakeLeftOffset < -show.flakeWidth) {
+				s.x = screenX - show.flakeWidth - 1; // flakeWidth;
 			}
 			s.refresh();
-			yDiff = screenY + scrollY - s.y + storm.flakeHeight;
-			if (yDiff < storm.flakeHeight) {
+			yDiff = screenY + scrollY - s.y + show.flakeHeight;
+			if (yDiff < show.flakeHeight) {
 				s.active = 0;
-				if (storm.snowStick) {
+				if (show.snowStick) {
 					s.stick();
 				} else {
 					s.recycle();
 				}
 			} else {
-				if (storm.useMeltEffect && s.active && s.type < 3 && !s.melting && Math.random() > 0.998) {
+				if (show.useMeltEffect && s.active && s.type < 3 && !s.melting && Math.random() > 0.998) {
 					// ~1/1000 chance of melting mid-air, with each frame
 					s.melting = true;
 					s.melt();
 					// only incrementally melt one frame
 					// s.melting = false;
 				}
-				if (storm.useTwinkleEffect) {
+				if (show.useTwinkleEffect) {
 					if (s.twinkleFrame < 0) {
 						if (Math.random() > 0.97) {
 							s.twinkleFrame = parseInt(Math.random() * 8, 10);
@@ -446,8 +447,8 @@ window.fireworks = (new function() { // jshint ignore:line
 		};
 
 		this.setVelocities = function() {
-			s.vX = vRndX + rnd(storm.vMaxX * 0.12, 0.1);
-			s.vY = vRndY + rnd(storm.vMaxY * 0.12, 0.1);
+			s.vX = vRndX + rnd(show.vMaxX * 0.12, 0.1);
+			s.vY = vRndY + rnd(show.vMaxY * 0.12, 0.1);
 		};
 
 		this.setOpacity = function(o, opacity) {
@@ -458,13 +459,13 @@ window.fireworks = (new function() { // jshint ignore:line
 		};
 
 		this.melt = function() {
-			if (!storm.useMeltEffect || !s.melting) {
+			if (!show.useMeltEffect || !s.melting) {
 				s.recycle();
 			} else {
 				if (s.meltFrame < s.meltFrameCount) {
 					s.setOpacity(s.o, s.meltFrames[s.meltFrame]);
 					s.o.style.fontSize = s.fontSize - (s.fontSize * (s.meltFrame / s.meltFrameCount)) + 'px';
-					s.o.style.lineHeight = storm.flakeHeight + 2 + (storm.flakeHeight * 0.75 * (s.meltFrame / s.meltFrameCount)) + 'px';
+					s.o.style.lineHeight = show.flakeHeight + 2 + (show.flakeHeight * 0.75 * (s.meltFrame / s.meltFrameCount)) + 'px';
 					s.meltFrame++;
 				} else {
 					s.recycle();
@@ -484,11 +485,11 @@ window.fireworks = (new function() { // jshint ignore:line
 			s.o.style.padding = '0px';
 			s.o.style.margin = '0px';
 			s.o.style.fontSize = s.fontSize + 'px';
-			s.o.style.lineHeight = (storm.flakeHeight + 2) + 'px';
+			s.o.style.lineHeight = (show.flakeHeight + 2) + 'px';
 			s.o.style.textAlign = 'center';
 			s.o.style.verticalAlign = 'baseline';
-			s.x = parseInt(rnd(screenX - storm.flakeWidth - 20), 10);
-			s.y = parseInt(rnd(screenY) * -1, 10) - storm.flakeHeight;
+			s.x = parseInt(rnd(screenX - show.flakeWidth - 20), 10);
+			s.y = parseInt(rnd(screenY) * -1, 10) - show.flakeHeight;
 			s.refresh();
 			s.o.style.display = 'block';
 			s.active = 1;
@@ -502,79 +503,79 @@ window.fireworks = (new function() { // jshint ignore:line
 		var active = 0,
 			flake = null,
 			i, j;
-		for(i = 0, j = storm.flakes.length; i < j; i++) {
-			if (storm.flakes[i].active === 1) {
-				storm.flakes[i].move();
+		for(i = 0, j = show.flakes.length; i < j; i++) {
+			if (show.flakes[i].active === 1) {
+				show.flakes[i].move();
 				active++;
 			}
-			if (storm.flakes[i].melting) {
-				storm.flakes[i].melt();
+			if (show.flakes[i].melting) {
+				show.flakes[i].melt();
 			}
 		}
-		if (active < storm.flakesMaxActive) {
-			flake = storm.flakes[parseInt(rnd(storm.flakes.length), 10)];
+		if (active < show.flakesMaxActive) {
+			flake = show.flakes[parseInt(rnd(show.flakes.length), 10)];
 			if (flake.active === 0) {
 				flake.melting = true;
 			}
 		}
-		if (storm.timer) {
-			features.getAnimationFrame(storm.fireworks);
+		if (show.timer) {
+			features.getAnimationFrame(show.fireworks);
 		}
 	};
 
 	this.mouseMove = function(e) {
-		if (!storm.followMouse) {
+		if (!show.followMouse) {
 			return true;
 		}
 		var x = parseInt(e.clientX, 10);
 		if (x < screenX2) {
-			storm.windOffset = -storm.windMultiplier + (x / screenX2 * storm.windMultiplier);
+			show.windOffset = -show.windMultiplier + (x / screenX2 * show.windMultiplier);
 		} else {
 			x -= screenX2;
-			storm.windOffset = (x / screenX2) * storm.windMultiplier;
+			show.windOffset = (x / screenX2) * show.windMultiplier;
 		}
 	};
 
 	this.createSnow = function(limit, allowInactive) {
 		var i;
 		for(i = 0; i < limit; i++) {
-			storm.flakes[storm.flakes.length] = new storm.SnowFlake(parseInt(rnd(storm.flakeTypes), 10));
-			if (allowInactive || i > storm.flakesMaxActive) {
-				storm.flakes[storm.flakes.length - 1].active = -1;
+			show.flakes[show.flakes.length] = new show.SnowFlake(parseInt(rnd(show.flakeTypes), 10));
+			if (allowInactive || i > show.flakesMaxActive) {
+				show.flakes[show.flakes.length - 1].active = -1;
 			}
 		}
-		storm.targetElement.appendChild(docFrag);
+		show.targetElement.appendChild(docFrag);
 	};
 
 	this.timerInit = function() {
-		storm.timer = true;
-		storm.fireworks();
+		show.timer = true;
+		show.fireworks();
 	};
 
 	this.init = function() {
 		var i;
-		for(i = 0; i < storm.meltFrameCount; i++) {
-			storm.meltFrames.push(1 - (i / storm.meltFrameCount));
+		for(i = 0; i < show.meltFrameCount; i++) {
+			show.meltFrames.push(1 - (i / show.meltFrameCount));
 		}
-		storm.createSnow(storm.flakesMax); // create initial batch
-		storm.events.add(window, 'resize', storm.resizeHandler);
-		storm.events.add(window, 'scroll', storm.scrollHandler);
-		if (storm.freezeOnBlur) {
+		show.createSnow(show.flakesMax); // create initial batch
+		show.events.add(window, 'resize', show.resizeHandler);
+		show.events.add(window, 'scroll', show.scrollHandler);
+		if (show.freezeOnBlur) {
 			if (isIE) {
-				storm.events.add(document, 'focusout', storm.freeze);
-				storm.events.add(document, 'focusin', storm.resume);
+				show.events.add(document, 'focusout', show.freeze);
+				show.events.add(document, 'focusin', show.resume);
 			} else {
-				storm.events.add(window, 'blur', storm.freeze);
-				storm.events.add(window, 'focus', storm.resume);
+				show.events.add(window, 'blur', show.freeze);
+				show.events.add(window, 'focus', show.resume);
 			}
 		}
-		storm.resizeHandler();
-		storm.scrollHandler();
-		if (storm.followMouse) {
-			storm.events.add(isIE ? document : window, 'mousemove', storm.mouseMove);
+		show.resizeHandler();
+		show.scrollHandler();
+		if (show.followMouse) {
+			show.events.add(isIE ? document : window, 'mousemove', show.mouseMove);
 		}
-		storm.animationInterval = Math.max(20, storm.animationInterval);
-		storm.timerInit();
+		show.animationInterval = Math.max(20, show.animationInterval);
+		show.timerInit();
 	};
 
 	this.start = function(bFromOnLoad) {
@@ -584,62 +585,62 @@ window.fireworks = (new function() { // jshint ignore:line
 			// already loaded and running
 			return true;
 		}
-		if (typeof storm.targetElement === 'string') {
-			var targetID = storm.targetElement;
-			storm.targetElement = document.getElementById(targetID);
-			if (!storm.targetElement) {
-				throw new Error('Snowstorm: Unable to get targetElement "' + targetID + '"');
+		if (typeof show.targetElement === 'string') {
+			var targetID = show.targetElement;
+			show.targetElement = document.getElementById(targetID);
+			if (!show.targetElement) {
+				throw new Error('Fireworkshow: Unable to get targetElement "' + targetID + '"');
 			}
 		}
-		if (!storm.targetElement) {
-			storm.targetElement = (document.body || document.documentElement);
+		if (!show.targetElement) {
+			show.targetElement = (document.body || document.documentElement);
 		}
-		if (storm.targetElement !== document.documentElement && storm.targetElement !== document.body) {
+		if (show.targetElement !== document.documentElement && show.targetElement !== document.body) {
 			// re-map handler to get element instead of screen dimensions
-			storm.resizeHandler = storm.resizeHandlerAlt;
+			show.resizeHandler = show.resizeHandlerAlt;
 			//and force-enable pixel positioning
-			storm.usePixelPosition = true;
+			show.usePixelPosition = true;
 		}
-		storm.resizeHandler(); // get bounding box elements
-		storm.usePositionFixed = (storm.usePositionFixed && !noFixed && !storm.flakeBottom); // whether or not position:fixed is to be used
+		show.resizeHandler(); // get bounding box elements
+		show.usePositionFixed = (show.usePositionFixed && !noFixed && !show.flakeBottom); // whether or not position:fixed is to be used
 		if (window.getComputedStyle) {
 			// attempt to determine if body or user-specified snow parent element is relatlively-positioned.
 			try {
-				targetElementIsRelative = (window.getComputedStyle(storm.targetElement, null).getPropertyValue('position') === 'relative');
+				targetElementIsRelative = (window.getComputedStyle(show.targetElement, null).getPropertyValue('position') === 'relative');
 			} catch(e) {
 				// oh well
 				targetElementIsRelative = false;
 			}
 		}
-		fixedForEverything = storm.usePositionFixed;
-		if (screenX && screenY && !storm.disabled) {
-			storm.init();
-			storm.active = true;
+		fixedForEverything = show.usePositionFixed;
+		if (screenX && screenY && !show.disabled) {
+			show.init();
+			show.active = true;
 		}
 	};
 
 	function doDelayedStart() {
 		window.setTimeout(function() {
-			storm.start(true);
+			show.start(true);
 		}, 20);
 		// event cleanup
-		storm.events.remove(isIE ? document : window, 'mousemove', doDelayedStart);
+		show.events.remove(isIE ? document : window, 'mousemove', doDelayedStart);
 	}
 
 	function doStart() {
-		if ((!storm.excludeMobile || !isMobile)) {
+		if ((!show.excludeMobile || !isMobile)) {
 			doDelayedStart();
 		}
 		// event cleanup
-		storm.events.remove(window, 'load', doStart);
+		show.events.remove(window, 'load', doStart);
 	}
 
 	// hooks for starting the snow
-	if (storm.autoStart) {
+	if (show.autoStart) {
 		if (document.readyState === 'complete') {
 			doStart();
 		} else {
-			storm.events.add(window, 'load', doStart, false);
+			show.events.add(window, 'load', doStart, false);
 		}
 	}
 }());
