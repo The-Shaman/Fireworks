@@ -498,7 +498,7 @@ window.fireworks = (new function() { // jshint ignore:line
 		this.refresh();
 	};
 
-	this.snow = function() {
+	this.fireworks = function() {
 		var active = 0,
 			flake = null,
 			i, j;
@@ -518,7 +518,7 @@ window.fireworks = (new function() { // jshint ignore:line
 			}
 		}
 		if (storm.timer) {
-			features.getAnimationFrame(storm.snow);
+			features.getAnimationFrame(storm.fireworks);
 		}
 	};
 
@@ -548,7 +548,7 @@ window.fireworks = (new function() { // jshint ignore:line
 
 	this.timerInit = function() {
 		storm.timer = true;
-		storm.snow();
+		storm.fireworks();
 	};
 
 	this.init = function() {
