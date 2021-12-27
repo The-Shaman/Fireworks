@@ -149,6 +149,7 @@ window.fireworkShow = (new function() { // jshint ignore:line
 
 	this.timer = null;
 	this.flakes = [];
+	this.rockets = [];
 	this.disabled = false;
 	this.active = false;
 	this.meltFrameCount = 20;
@@ -327,9 +328,8 @@ window.fireworkShow = (new function() { // jshint ignore:line
 		}
 	};
 
-	this.SnowFlake = function(type, x, y) {
+	this.fireworkStar = function(x, y) {
 		var s = this;
-		this.type = type;
 		this.x = x || parseInt(rnd(screenX - 20), 10);
 		this.y = (!isNaN(y) ? y : -rnd(screenY) - 12);
 		this.vX = null;
@@ -440,12 +440,6 @@ window.fireworkShow = (new function() { // jshint ignore:line
 			}
 		};
 
-		this.animate = function() {
-			// main animation loop
-			// move, check status, die etc.
-			s.move();
-		};
-
 		this.setVelocities = function() {
 			s.vX = vRndX + rnd(show.vMaxX * 0.12, 0.1);
 			s.vY = vRndY + rnd(show.vMaxY * 0.12, 0.1);
@@ -499,6 +493,96 @@ window.fireworkShow = (new function() { // jshint ignore:line
 		this.refresh();
 	};
 
+	this.fireworkRocket = function(type, x, targetY) {
+		var r = this;
+		this.type = type;
+		this.x = x || parseInt(rnd(screenX - 20), 10);
+		this.y = screenY;
+		this.vX = null; // x velocity
+		this.vY = null;	// y velocity
+		this.tY = targetY; // target Y value for rocket to explode at.
+		this.active = 1;
+		this.fontSize = (10 + (this.type / 5) * 10);
+		this.o = document.createElement('div');
+		this.o.innerHTML = show.starCharacter;
+		if (show.className) {
+			this.o.setAttribute('class', show.className);
+		}
+		this.o.style.color = '#fff';
+		this.o.style.position = (fixedForEverything ? 'fixed' : 'absolute');
+		if (show.useGPU && features.transform.prop) {
+			// GPU-accelerated snow.
+			this.o.style[features.transform.prop] = 'translate3d(0px, 0px, 0px)';
+		}
+		this.o.style.width = show.flakeWidth + 'px';
+		this.o.style.height = show.flakeHeight + 'px';
+		this.o.style.fontFamily = 'arial,verdana';
+		this.o.style.cursor = 'default';
+		this.o.style.overflow = 'hidden';
+		this.o.style.fontWeight = 'normal';
+		this.o.style.zIndex = show.zIndex;
+		docFrag.appendChild(this.o);
+
+		this.refresh = function() {
+			if (isNaN(r.x) || isNaN(r.y)) {
+				// safety check
+				return false;
+			}
+			show.setXY(r.o, r.x, r.y);
+		};
+
+		this.move = function() {
+			r.x += r.vX;
+			r.y -= r.vY;
+			r.vX *= 7/8;
+			r.vY *= 3/4;
+			r.refresh();
+			if (r.y < r.targetY) {
+				r.explode();	
+			}
+		};
+
+		this.explode = function() {
+			r.active = Math.floor(Math.random() * 175 - 75) + 75 + 1;
+			// Summon firework stars here
+		};
+
+		this.setVelocities = function() {
+			// Hey change this code later
+			r.vX = vRndX + rnd(show.vMaxX * 0.12, 0.1);
+			r.vY = vRndY + rnd(show.vMaxY * 0.12, 0.1);
+		};
+
+		this.setOpacity = function(o, opacity) {
+			if (!opacitySupported) {
+				return false;
+			}
+			o.style.opacity = opacity;
+		};
+
+		this.recycle = function() {
+			r.o.style.display = 'none';
+			r.o.style.position = (fixedForEverything ? 'fixed' : 'absolute');
+			r.o.style.bottom = 'auto';
+			r.setVelocities();
+			r.setOpacity(r.o, 1);
+			r.o.style.padding = '0px';
+			r.o.style.margin = '0px';
+			r.o.style.fontSize = r.fontSize + 'px';
+			r.o.style.lineHeight = (show.flakeHeight + 2) + 'px';
+			r.o.style.textAlign = 'center';
+			r.o.style.verticalAlign = 'baseline';
+			r.x = parseInt(rnd(screenX - show.flakeWidth - 20), 10);
+			r.y = screenY;
+			r.refresh();
+			r.o.style.display = 'block';
+			r.active = 1;
+		};
+
+		this.recycle(); // set up x/y coords etc.
+		this.refresh();
+	};
+
 	this.fireworks = function() {
 		var active = 0,
 			flake = null,
@@ -512,10 +596,13 @@ window.fireworkShow = (new function() { // jshint ignore:line
 				show.flakes[i].melt();
 			}
 		}
-		if (active < show.flakesMaxActive) {
-			flake = show.flakes[parseInt(rnd(show.flakes.length), 10)];
-			if (flake.active === 0) {
-				flake.melting = true;
+		for (i = 0, j = show.rockets.length; i < j; i++) {
+			if (show.rockets[i].active === 1) {
+				show.rockets[i].move();
+			} else if (show.rockets[i].active === 2) {
+				show.rockets[i].refresh();
+			} else {
+				show.rockets[i].active--;
 			}
 		}
 		if (show.timer) {
@@ -536,13 +623,10 @@ window.fireworkShow = (new function() { // jshint ignore:line
 		}
 	};
 
-	this.createSnow = function(limit, allowInactive) {
+	this.createRocket = function(limit, allowInactive) {
 		var i;
 		for(i = 0; i < limit; i++) {
-			show.flakes[show.flakes.length] = new show.SnowFlake(parseInt(rnd(show.flakeTypes), 10));
-			if (allowInactive || i > show.flakesMaxActive) {
-				show.flakes[show.flakes.length - 1].active = -1;
-			}
+			show.rockets[show.rockets.length] = new show.fireworkRocket(parseInt(rnd(show.flakeTypes), 10));
 		}
 		show.targetElement.appendChild(docFrag);
 	};
@@ -557,7 +641,7 @@ window.fireworkShow = (new function() { // jshint ignore:line
 		for(i = 0; i < show.meltFrameCount; i++) {
 			show.meltFrames.push(1 - (i / show.meltFrameCount));
 		}
-		show.createSnow(show.flakesMax); // create initial batch
+		show.createRocket(show.rocketsMax); // create initial batch
 		show.events.add(window, 'resize', show.resizeHandler);
 		show.events.add(window, 'scroll', show.scrollHandler);
 		if (show.freezeOnBlur) {
