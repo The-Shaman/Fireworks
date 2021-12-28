@@ -13,16 +13,14 @@
 window.fireworkShow = (new function() { // jshint ignore:line
 	var defaults = {
 		autoStart: true, // Whether the snow should start automatically or not.
-		excludeMobile: true, // Snow is likely to be bad news for mobile phones' CPUs (and batteries.) Enable at your own risk.
-		rocketsMax: 4, // Make this flakesMaxActive/16 (warning: this ratio hasn't been tested so don't trust it)
-		flakesMax: 128, // Limit total amount of snow made (falling + sticking)
-		flakesMaxActive: 64,  // Limit amount of snow falling at once (less = lower CPU use)
+		excludeMobile: true, // Snow is likelscy to be bad news for mobile phones' CPUs (and batteries.) Enable at your own risk.
+		rocketsMax: 3, // Make this flakesMaxActive/16 - 2 (warning: this ratio hasn't been tested so don't trust it)
+		flakesMaxActive: 72,  // Limit amount of snow falling at once (less = lower CPU use)
 		animationInterval: 35, // Theoretical "milliseconds per frame" measurement. 20 = fast + smooth, but high 
 							// CPU use. 50 = more conservative, but slower
 		useGPU: true, // Enable transform-based hardware acceleration, reduce CPU load.
 		className: null, // CSS class name for further customization on snow elements
 		flakeBottom: null, // Integer for Y axis snow limit, 0 or null for "full-screen" snow effect
-		followMouse: true, // Snow movement can respond to the user's mouse
 		starCharacter: '&bull;', // &bull; = bullet, &middot, is square on some systems etc.
 		targetElement: null, // element which snow will be appended to (null = document.body) - can be an element 
 	// ID eg. 'myDiv', or a DOM node reference
@@ -46,6 +44,7 @@ window.fireworkShow = (new function() { // jshint ignore:line
 		windOffset: 1,
 		windMultiplier: 2,
 		flakeTypes: 6,
+		rocketTypes: 3, // 0: Single color. 1: 2 colors. 2: random colors. All of these may be subject to change
 	};
 	
 	var config = Object.assign(defaults, window.fireworkShow || {});
@@ -239,13 +238,13 @@ window.fireworkShow = (new function() { // jshint ignore:line
 		// "attach" snowflakes to bottom of window if no absolute bottom value was given
 		scrollY = (show.flakeBottom ? 0 : parseInt(window.scrollY || document.documentElement.scrollTop || (noFixed ? document.body.scrollTop : 0), 10));
 		if (isNaN(scrollY)) scrollY = 0; // Netscape 6 scroll fix
-		if (!fixedForEverything && !show.flakeBottom && show.flakes) {
+		/* if (!fixedForEverything && !show.flakeBottom && show.flakes) {
 			for(i = 0; i < show.flakes.length; i++) {
 				if (show.flakes[i].active === 0) {
 					show.flakes[i].stick();
 				}
 			}
-		}
+		} */
 	};
 
 	this.resizeHandler = function() {
@@ -328,32 +327,25 @@ window.fireworkShow = (new function() { // jshint ignore:line
 		}
 	};
 
-	this.fireworkStar = function(x, y) {
+	this.fireworkStar = function() {
 		var s = this;
-		this.x = x || parseInt(rnd(screenX - 20), 10);
-		this.y = (!isNaN(y) ? y : -rnd(screenY) - 12);
+		this.x = parseInt(rnd(screenX - 20), 10);
+		this.y =  -rnd(screenY) - 12;
 		this.vX = null;
 		this.vY = null;
-		this.vAmpTypes = [1, 1.2, 1.4, 1.6, 1.8]; // "amplification" for vX/vY (based on flake size/type)
-		this.vAmp = this.vAmpTypes[this.type] || 1;
-		this.melting = false;
-		this.meltFrameCount = show.meltFrameCount;
-		this.meltFrames = show.meltFrames;
-		this.meltFrame = 0;
-		this.twinkleFrame = 0;
-		this.active = 1;
-		this.fontSize = (10 + (this.type / 5) * 10);
+		this.active = 0;
+		this.fontSize = (30 + Math.floor(Math.random() * 5) * 2);
 		this.o = document.createElement('div');
 		this.o.innerHTML = show.starCharacter;
 		if (show.className) {
 			this.o.setAttribute('class', show.className);
 		}
-		//this.o.style.color = show.snowColor;
 		this.o.style.position = (fixedForEverything ? 'fixed' : 'absolute');
 		if (show.useGPU && features.transform.prop) {
 			// GPU-accelerated snow.
 			this.o.style[features.transform.prop] = 'translate3d(0px, 0px, 0px)';
 		}
+		this.o.style.color = '#fff';
 		this.o.style.width = show.flakeWidth + 'px';
 		this.o.style.height = show.flakeHeight + 'px';
 		this.o.style.fontFamily = 'arial,verdana';
@@ -372,10 +364,10 @@ window.fireworkShow = (new function() { // jshint ignore:line
 		};
 
 		this.stick = function() {
-			if (noFixed || (show.targetElement !== document.documentElement && show.targetElement !== document.body)) {
-				s.o.style.top = (screenY + scrollY - show.flakeHeight) + 'px';
-			} else if (show.flakeBottom) {
-				s.o.style.top = show.flakeBottom + 'px';
+			if (noFixed || (storm.targetElement !== document.documentElement && storm.targetElement !== document.body)) {
+				s.o.style.top = (screenY + scrollY - storm.flakeHeight) + 'px';
+			} else if (storm.flakeBottom) {
+				s.o.style.top = storm.flakeBottom + 'px';
 			} else {
 				s.o.style.display = 'none';
 				s.o.style.top = 'auto';
@@ -385,64 +377,25 @@ window.fireworkShow = (new function() { // jshint ignore:line
 			}
 		};
 
-		this.vCheck = function() {
-			if (s.vX >= 0 && s.vX < 0.2) {
-				s.vX = 0.2;
-			} else if (s.vX < 0 && s.vX > -0.2) {
-				s.vX = -0.2;
-			}
-			if (s.vY >= 0 && s.vY < 0.2) {
-				s.vY = 0.2;
-			}
-		};
-
 		this.move = function() {
-			var vX = s.vX * show.windOffset,
-				yDiff;
-			s.x += vX;
-			s.y += (s.vY * s.vAmp);
-			if (s.x >= screenX || screenX - s.x < show.flakeWidth) { // X-axis scroll check
-				s.x = 0;
-			} else if (vX < 0 && s.x - show.flakeLeftOffset < -show.flakeWidth) {
-				s.x = screenX - show.flakeWidth - 1; // flakeWidth;
+			s.x += s.vX;
+			s.y += s.vY;
+			s.vY += 0.5;
+			if (s.vX !== 0) {
+				s.vX -= 0.1 * s.vX/Math.abs(s.vX);
 			}
 			s.refresh();
-			yDiff = screenY + scrollY - s.y + show.flakeHeight;
-			if (yDiff < show.flakeHeight) {
+			if (s.x >= screenX || s.x < 0) { // X-axis scroll check
 				s.active = 0;
-				if (show.snowStick) {
-					s.stick();
-				} else {
-					s.recycle();
-				}
-			} else {
-				if (show.useMeltEffect && s.active && s.type < 3 && !s.melting && Math.random() > 0.998) {
-					// ~1/1000 chance of melting mid-air, with each frame
-					s.melting = true;
-					s.melt();
-					// only incrementally melt one frame
-					// s.melting = false;
-				}
-				if (show.useTwinkleEffect) {
-					if (s.twinkleFrame < 0) {
-						if (Math.random() > 0.97) {
-							s.twinkleFrame = parseInt(Math.random() * 8, 10);
-						}
-					} else {
-						s.twinkleFrame--;
-						if (!opacitySupported) {
-							s.o.style.visibility = (s.twinkleFrame && s.twinkleFrame % 2 === 0 ? 'hidden' : 'visible');
-						} else {
-							s.o.style.opacity = (s.twinkleFrame && s.twinkleFrame % 2 === 0 ? 0 : 1);
-						}
-					}
-				}
+				s.o.style.display = 'none';
+				console.log('X kill');
 			}
-		};
-
-		this.setVelocities = function() {
-			s.vX = vRndX + rnd(show.vMaxX * 0.12, 0.1);
-			s.vY = vRndY + rnd(show.vMaxY * 0.12, 0.1);
+			//console.log('Y = ' + s.y.toString() + '. show.height = ' + show.height.toString());
+			if (s.y >= show.height) {
+				s.active = 0;
+				s.o.style.display = 'none';
+				console.log('Y kill: Y = ' + s.y.toString() + '. show.height = ' + show.height.toString());
+			}
 		};
 
 		this.setOpacity = function(o, opacity) {
@@ -452,29 +405,13 @@ window.fireworkShow = (new function() { // jshint ignore:line
 			o.style.opacity = opacity;
 		};
 
-		this.melt = function() {
-			if (!show.useMeltEffect || !s.melting) {
-				s.recycle();
-			} else {
-				if (s.meltFrame < s.meltFrameCount) {
-					s.setOpacity(s.o, s.meltFrames[s.meltFrame]);
-					s.o.style.fontSize = s.fontSize - (s.fontSize * (s.meltFrame / s.meltFrameCount)) + 'px';
-					s.o.style.lineHeight = show.flakeHeight + 2 + (show.flakeHeight * 0.75 * (s.meltFrame / s.meltFrameCount)) + 'px';
-					s.meltFrame++;
-				} else {
-					s.recycle();
-				}
-			}
-		};
-
-		this.recycle = function() {
+		this.recycle = function(x, y, vX, vY, color) {
 			s.o.style.display = 'none';
 			s.o.style.position = (fixedForEverything ? 'fixed' : 'absolute');
 			s.o.style.bottom = 'auto';
-			s.setVelocities();
-			s.vCheck();
-			s.meltFrame = 0;
-			s.melting = false;
+			s.vX = vX;
+			s.vY = vY;
+			s.o.style.color = color;
 			s.setOpacity(s.o, 1);
 			s.o.style.padding = '0px';
 			s.o.style.margin = '0px';
@@ -482,8 +419,8 @@ window.fireworkShow = (new function() { // jshint ignore:line
 			s.o.style.lineHeight = (show.flakeHeight + 2) + 'px';
 			s.o.style.textAlign = 'center';
 			s.o.style.verticalAlign = 'baseline';
-			s.x = parseInt(rnd(screenX - show.flakeWidth - 20), 10);
-			s.y = parseInt(rnd(screenY) * -1, 10) - show.flakeHeight;
+			s.x = x;
+			s.y = y;
 			s.refresh();
 			s.o.style.display = 'block';
 			s.active = 1;
@@ -491,36 +428,34 @@ window.fireworkShow = (new function() { // jshint ignore:line
 
 		this.recycle(); // set up x/y coords etc.
 		this.refresh();
+		s.active = 0;
+		s.setOpacity(s.o, 0);
 	};
 
-	this.fireworkRocket = function(type, x, targetY) {
+	this.fireworkRocket = function(type) {
 		var r = this;
 		this.type = type;
-		this.x = x || parseInt(rnd(screenX - 20), 10);
+		this.x = parseInt(rnd(screenX - 20), 10);
 		this.y = screenY;
 		this.vX = null; // x velocity
 		this.vY = null;	// y velocity
-		this.tY = targetY; // target Y value for rocket to explode at.
+		this.tY = parseInt(rnd(50), 10) + screenY/4; // target Y value for rocket to explode at.
 		this.active = 1;
-		this.fontSize = (10 + (this.type / 5) * 10);
-		this.o = document.createElement('div');
-		this.o.innerHTML = show.starCharacter;
+		this.fontSize = (25);
+		this.o = document.createElement('img');
+		this.o.src = 'https://static.wikia.nocookie.net/hypixel-skyblock/images/2/25/Firework_Rocket.png/revision/latest/scale-to-width-down/160?cb=20210615224504';
 		if (show.className) {
 			this.o.setAttribute('class', show.className);
 		}
-		this.o.style.color = '#fff';
-		this.o.style.position = (fixedForEverything ? 'fixed' : 'absolute');
+		//this.o.style.color = '#fff';
+		//this.o.style.position = (fixedForEverything ? 'fixed' : 'absolute');
 		if (show.useGPU && features.transform.prop) {
 			// GPU-accelerated snow.
 			this.o.style[features.transform.prop] = 'translate3d(0px, 0px, 0px)';
 		}
-		this.o.style.width = show.flakeWidth + 'px';
-		this.o.style.height = show.flakeHeight + 'px';
-		this.o.style.fontFamily = 'arial,verdana';
-		this.o.style.cursor = 'default';
-		this.o.style.overflow = 'hidden';
-		this.o.style.fontWeight = 'normal';
-		this.o.style.zIndex = show.zIndex;
+		this.o.style.width = '40px';
+		this.o.style.height = '40px';
+		this.o.style.zIndex = show.zIndex - 1;
 		docFrag.appendChild(this.o);
 
 		this.refresh = function() {
@@ -534,23 +469,51 @@ window.fireworkShow = (new function() { // jshint ignore:line
 		this.move = function() {
 			r.x += r.vX;
 			r.y -= r.vY;
-			r.vX *= 7/8;
-			r.vY *= 3/4;
+			r.vX *= 3/4;
+			r.vY *= 7/8;
 			r.refresh();
-			if (r.y < r.targetY) {
-				r.explode();	
+			if (r.y <= r.targetY || r.vY <= 3) {
+				r.explode(r.x, r.y);	
 			}
 		};
 
-		this.explode = function() {
-			r.active = Math.floor(Math.random() * 175 - 75) + 75 + 1;
-			// Summon firework stars here
+		this.explode = function(x, y) {
+			r.active = Math.floor(Math.random() * 256) + 128 + 1;
+			r.o.style.display = 'none';
+			console.log('Explode! Type: ' + r.type.toString());
+			var inactiveStars = [];
+			var i;
+			for (i = 0; i < show.flakes.length; i++) {
+				if (show.flakes[i].active === 0) {
+					inactiveStars[inactiveStars.length] = i;
+				}
+			}
+			if (inactiveStars.length < 16) {
+				console.log('Add more flakes at initialization.');
+			}
+			if (type === 0) {
+				r.color1 = 'rgb(' + Math.floor(Math.random()*256).toString() + ',' + Math.floor(Math.random()*256).toString() + ',' + Math.floor(Math.random()*256).toString() + ')';
+				for (i = 0; i < 16; i++) {
+					show.flakes[inactiveStars[i]].recycle(x,y,10*Math.sin(i*Math.PI/8),10*Math.cos(i*Math.PI/8)-11,r.color1);
+				}
+			} else if (type === 1) {
+				r.colors = [Math.floor(Math.random()*256), Math.floor(Math.random()*256), Math.floor(Math.random()*256)]; // A thing
+				r.color1 = 'rgb(' + r.colors[0].toString() + ',' + r.colors[1].toString() + ',' + r.colors[2].toString() + ')';
+				r.color2 = 'rgb(' + (255 - r.colors[0]).toString() + ',' + (255 - r.colors[1]).toString() + ',' + (255 - r.colors[2]).toString() + ')';
+				for (i = 0; i < 16; i++) {
+					show.flakes[inactiveStars[i]].recycle(x,y,10*Math.sin(i*Math.PI/8),10*Math.cos(i*Math.PI/8)-11,(i%2 === 1 ? r.color1 : r.color2));
+				}
+			} else {
+				for (i = 0; i < 16; i++) {
+					show.flakes[inactiveStars[i]].recycle(x,y,10*Math.sin(i*Math.PI/8),10*Math.cos(i*Math.PI/8)-11,'rgb(' + Math.floor(Math.random()*256).toString() + ',' + Math.floor(Math.random()*256).toString() + ',' + Math.floor(Math.random()*256).toString() + ')');
+				}
+			}
 		};
 
 		this.setVelocities = function() {
-			// Hey change this code later
-			r.vX = vRndX + rnd(show.vMaxX * 0.12, 0.1);
-			r.vY = vRndY + rnd(show.vMaxY * 0.12, 0.1);
+			r.vX = rnd(8, 0.1);
+			r.vY = Math.floor(Math.random() * 32) + 65;
+			r.targetY = parseInt(rnd(50), 10) + screenY/4;
 		};
 
 		this.setOpacity = function(o, opacity) {
@@ -568,9 +531,9 @@ window.fireworkShow = (new function() { // jshint ignore:line
 			r.setOpacity(r.o, 1);
 			r.o.style.padding = '0px';
 			r.o.style.margin = '0px';
-			r.o.style.fontSize = r.fontSize + 'px';
-			r.o.style.lineHeight = (show.flakeHeight + 2) + 'px';
-			r.o.style.textAlign = 'center';
+			//r.o.style.fontSize = r.fontSize + 'px';
+			//r.o.style.lineHeight = (show.flakeHeight + 2) + 'px';
+			//r.o.style.textAlign = 'center';
 			r.o.style.verticalAlign = 'baseline';
 			r.x = parseInt(rnd(screenX - show.flakeWidth - 20), 10);
 			r.y = screenY;
@@ -584,49 +547,41 @@ window.fireworkShow = (new function() { // jshint ignore:line
 	};
 
 	this.fireworks = function() {
-		var active = 0,
-			flake = null,
+			var active = 0,
 			i, j;
 		for(i = 0, j = show.flakes.length; i < j; i++) {
 			if (show.flakes[i].active === 1) {
 				show.flakes[i].move();
 				active++;
 			}
-			if (show.flakes[i].melting) {
-				show.flakes[i].melt();
-			}
 		}
 		for (i = 0, j = show.rockets.length; i < j; i++) {
 			if (show.rockets[i].active === 1) {
 				show.rockets[i].move();
 			} else if (show.rockets[i].active === 2) {
-				show.rockets[i].refresh();
+				show.rockets[i].recycle();
 			} else {
 				show.rockets[i].active--;
 			}
 		}
+		console.log(show.rockets);
 		if (show.timer) {
 			features.getAnimationFrame(show.fireworks);
 		}
 	};
 
-	this.mouseMove = function(e) {
-		if (!show.followMouse) {
-			return true;
-		}
-		var x = parseInt(e.clientX, 10);
-		if (x < screenX2) {
-			show.windOffset = -show.windMultiplier + (x / screenX2 * show.windMultiplier);
-		} else {
-			x -= screenX2;
-			show.windOffset = (x / screenX2) * show.windMultiplier;
-		}
-	};
-
-	this.createRocket = function(limit, allowInactive) {
+	this.createRockets = function(limit) {
 		var i;
 		for(i = 0; i < limit; i++) {
-			show.rockets[show.rockets.length] = new show.fireworkRocket(parseInt(rnd(show.flakeTypes), 10));
+			show.rockets[show.rockets.length] = new show.fireworkRocket(Math.floor(Math.random() * 3));
+		}
+		show.targetElement.appendChild(docFrag);
+	};
+	
+	this.createStars = function(limit) {
+		var i;
+		for(i = 0; i < limit; i++) {
+			show.flakes[show.flakes.length] = new show.fireworkStar();
 		}
 		show.targetElement.appendChild(docFrag);
 	};
@@ -641,7 +596,8 @@ window.fireworkShow = (new function() { // jshint ignore:line
 		for(i = 0; i < show.meltFrameCount; i++) {
 			show.meltFrames.push(1 - (i / show.meltFrameCount));
 		}
-		show.createRocket(show.rocketsMax); // create initial batch
+		show.createRockets(show.rocketsMax); // create initial batch
+		show.createStars(show.flakesMaxActive);
 		show.events.add(window, 'resize', show.resizeHandler);
 		show.events.add(window, 'scroll', show.scrollHandler);
 		if (show.freezeOnBlur) {
@@ -655,11 +611,9 @@ window.fireworkShow = (new function() { // jshint ignore:line
 		}
 		show.resizeHandler();
 		show.scrollHandler();
-		if (show.followMouse) {
-			show.events.add(isIE ? document : window, 'mousemove', show.mouseMove);
-		}
 		show.animationInterval = Math.max(20, show.animationInterval);
 		show.timerInit();
+		show.height = Math.max(document.body.scrollHeight, document.body.offsetHeight, document.documentElement.clientHeight, document.documentElement.scrollHeight, document.documentElement.offsetHeight);
 	};
 
 	this.start = function(bFromOnLoad) {
