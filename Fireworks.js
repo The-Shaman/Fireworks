@@ -48,8 +48,6 @@ mw.loader.using(["mediawiki.util", "mediawiki.Uri"], function () {
 
 			// --- less-used bits ---
 			freezeOnBlur: true, // Only show sparks when the window is in focus (foreground.) Saves CPU.
-			flakeLeftOffset: 0, // Left margin/gutter space on edge of container (eg. browser window.) Bump up these values if seeing horizontal scrollbars.
-			flakeRightOffset: 0, // Right margin/gutter space on edge of container
 			zIndex: 2, // CSS stacking order applied to each firework flake
 		};
 
